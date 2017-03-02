@@ -1,0 +1,241 @@
+#HADOOP STREAMING analysis on US domestic flights dataset!!!
+####################################################################################################################
+
+#a)  The maximum departure delay for each originating airport.
+
+#Mapper Code:
+
+#!/usr/bin/env python
+
+import sys
+import csv
+
+SEP= "\t"
+
+class Mapper:
+	def __init__(self, stream, sep = SEP):
+		self.stream = stream
+		self.sep = sep
+
+	def emit(self, key, value):
+		sys.stdout.write("{0}{1}{2}\n".format(key, self.sep, value))
+
+	def map(self):
+		for line in self:
+			self.emit(line[3], line[6])
+
+	def __iter__(self):
+		content = csv.reader(self.stream)
+		for line in content:
+			yield line
+
+
+if __name__ == "__main__":
+	mapper = Mapper(sys.stdin)
+	mapper.map()
+
+	
+#Reducer Code:
+
+#!/usr/bin/env python
+
+import sys
+from itertools import groupby
+from operator import itemgetter
+
+SEP = "\t"
+
+class Reducer:
+	def __init__(self, stream, sep = SEP):
+		self.stream = stream
+		self.sep = sep
+
+	def emit(self, key, value):
+		sys.stdout.write("{0}{1}{2}\n".format(key, self.sep, value))
+
+	
+	def reduce(self):
+		for key, group in groupby(self, itemgetter(0)):					
+			prev = 0
+			maximum = -100
+
+			for item in group:
+				#self.emit(item[0], item[1])
+				prev = item[1]
+				if prev > maximum:
+					maximum = prev
+			self.emit(key, maximum)
+	
+
+	def __iter__(self):
+		for line in self.stream:
+			try:
+				line = line.split(self.sep)
+				yield line[0], float(line[1])
+			except:
+				continue
+
+
+if __name__ == "__main__":
+	reducer = Reducer(sys.stdin)
+	reducer.reduce()
+
+####################################################################################################################
+#b)	The average arrival delay by flight#.
+
+#Mapper Code:
+
+#!/usr/bin/env python
+
+import sys
+import csv
+
+SEP= "\t"
+
+class Mapper:
+	def __init__(self, stream, sep = SEP):
+		self.stream = stream
+		self.sep = sep
+
+	def emit(self, key, value):
+		sys.stdout.write("{0}{1}{2}\n".format(key, self.sep, value))
+
+	def map(self):
+		for line in self:
+			self.emit(line[2], line[8])
+
+
+	def __iter__(self):
+		content = csv.reader(self.stream)
+		for line in content:
+			line = line.split(self.sep)
+			yield line
+
+
+if __name__ == "__main__":
+	mapper = Mapper(sys.stdin)
+	mapper.map()
+
+	
+#Reducer Code:
+
+#!/usr/bin/env python
+
+import sys
+from itertools import groupby
+from operator import itemgetter
+
+SEP = "\t"
+
+class Reducer:
+	def __init__(self, stream, sep = SEP):
+		self.stream = stream
+		self.sep = sep
+
+	def emit(self, key, value):
+		sys.stdout.write("{0}{1}{2}\n".format(key, self.sep, value))
+
+	
+	def reduce(self):
+		for key, group in groupby(self, itemgetter(0)):					
+			sum_total = 0
+			count = 0
+			for item in group:
+				sum_total += item[1]
+				count += 1
+
+			self.emit(key, float(sum_total)/float(count))
+	
+
+	def __iter__(self):
+		for line in self.stream:
+			try:
+				line = line.split(self.sep)
+				yield line[0], float(line[1])
+			except:
+				continue
+
+
+if __name__ == "__main__":
+	reducer = Reducer(sys.stdin)
+	reducer.reduce()
+
+####################################################################################################################
+#c) The minimum arrival delay for all origin-destination airport combinations:
+
+#Mapper Code:
+
+#!/usr/bin/env python
+
+import sys
+import csv
+
+SEP= "\t"
+
+class Mapper:
+	def __init__(self, stream, sep = SEP):
+		self.stream = stream
+		self.sep = sep
+
+	def emit(self, key1, key2, value):
+		sys.stdout.write("{0}-{1}{2}{3}\n".format(key1, key2, self.sep, value))
+
+	def map(self):
+		for line in self:
+			self.emit(line[3], line[4], line[8])
+
+
+	def __iter__(self):
+		content = csv.reader(self.stream)
+		for line in content:
+			yield line
+
+
+if __name__ == "__main__":
+	mapper = Mapper(sys.stdin)
+	mapper.map()
+	
+
+#Reducer Code:
+
+#!/usr/bin/env python
+
+import sys
+from itertools import groupby
+from operator import itemgetter
+
+SEP = "\t"
+
+class Reducer:
+	def __init__(self, stream, sep = SEP):
+		self.stream = stream
+		self.sep = sep
+
+	def emit(self, key, value):
+		sys.stdout.write("{0}{1}{2}\n".format(key, self.sep, value))
+
+	def reduce(self):
+		for key, group in groupby(self, itemgetter(0)):					
+			prev = 0
+			minimum = 1000
+			for item in group:
+				prev = item[1]
+				if prev < minimum:
+					minimum = prev
+			self.emit(key, minimum)	
+	
+	def __iter__(self):
+		for line in self.stream:
+			try:
+				line = line.split(self.sep)
+				#self.emit(line[0], float(line[1]))
+				yield line[0], float(line[1])
+			except:
+				continue
+
+
+if __name__ == "__main__":
+	reducer = Reducer(sys.stdin)
+	reducer.reduce()
+	
+####################################################################################################################
